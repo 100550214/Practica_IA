@@ -36,27 +36,33 @@ class ControlModule:
         return tmatrix
 
     @staticmethod
-    def generate_R(n_states: np.int32, n_actions: np.int32, demand: np.ndarray) -> np.ndarray:
+    def generate_R(n_states: np.int32, n_actions: np.int32, demand: np.int64) -> np.ndarray:
         """ Function that generates the rewards (costs) matrix """
         cmatrix = np.zeros((n_actions,n_states,n_states))
-        for i in range (n_actions):
-            for k in range(n_states):
-                for z in range (n_states):
-                    d1 = abs(demand-k/100)
-                    d2 = abs(demand-z/100)
-                    if d2 > d1:
-                        cmatrix[i][k][z] = d2*2
-                    else:
-                        cmatrix[i][k][z] = d2
-        
+        i = np.arange(n_actions)
+        j = np.arange(n_states)
+        k = np.arange(n_states)
+        I,J,K = np.meshgrid(i,j,k,indexing='ij')
+        current = J/100
+        next_ = K/100
+        decrease = (I==0)
+        increase = (I==2)
+        penalize = (current<demand & decrease & current<next_) | \
+                   (current>demand & increase & current>next_)
+        cost = np.abs(demand-next_)
+        cmatrix[:] = np.where(penalize,cost*2,cost)
         return cmatrix
                     
 
     @staticmethod
-    def control_iteration() -> np.int32:
+    def control_iteration(current_power: np.int64, 
+                          tmatrix: np.ndarray, 
+                          cmatrix: np.ndarray, 
+                          discount: np.int64) -> np.int32:
         """ Function that computes one control-iteration """
-        ### TO BE COMPLETED BY THE STUDENTS ###
-        ...
+        result = mdptoolbox.mdp.ValueIteration(tmatrix,cmatrix,discount)
+        result.run()
+        return result.policy[current_power]
 
     @staticmethod
     def control_loop(demand: np.ndarray, 
@@ -65,7 +71,29 @@ class ControlModule:
                      n_actions: np.int32,
                      gamma: np.float64) -> np.ndarray:
         """ Function that computes all the required iterations (control-loop) to satisfy the power demand """
-        ### TO BE COMPLETED BY THE STUDENTS ###
+        tmatrix = ControlModule.generate_P(n_states,n_actions,probs)
+        allcmatrix = np.array([ControlModule.generate_R(n_states,n_actions,d) for d in demand])
+        optimized_action = np.int32(-1)
+        current_power = 0
+        power_curve = []
+        for i in range(len(demand)):
+            decrease = [max(0,current_power-2),max(0,current_power-1),current_power]
+            maintain = [max(0,current_power-1),current_power,min(n_states-1,current_power+1)]
+            increase = [current_power,min(n_states-1,current_power+1),min(n_states-1,current_power+2)]
+            cmatrix = allcmatrix[i]
+            optimized_action = ControlModule.control_iteration(current_power,tmatrix,cmatrix,0.95)
+            if optimized_action == 0:
+                current_power = np.random.choice(decrease,p=probs["decrease"])
+            elif optimized_action == 1:
+                current_power = np.random.choice(maintain,p=probs["maintain"])
+            elif optimized_action == 2:
+                current_power = np.random.choice(increase,p=probs["increase"])
+            power_curve.append(current_power/100)
+
+        return np.array(power_curve)
+        
+            
+            
 
         ### DUMMY BEHAVIOUR TO PREVENT CRASHING (MUST BE DELETED AFTER THE FULL IMPLEMENTATION) ###
         return np.zeros_like(a=demand, dtype=np.float64)
