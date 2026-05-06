@@ -47,8 +47,8 @@ class ControlModule:
         next_ = K/100
         decrease = (I==0)
         increase = (I==2)
-        penalize = (current<demand & decrease & current<next_) | \
-                   (current>demand & increase & current>next_)
+        penalize = ((current<demand) & decrease & (current<next_)) | \
+                   ((current>demand) & increase & (current>next_))
         cost = np.abs(demand-next_)
         cmatrix[:] = np.where(penalize,cost*2,cost)
         return cmatrix
@@ -72,7 +72,6 @@ class ControlModule:
                      gamma: np.float64) -> np.ndarray:
         """ Function that computes all the required iterations (control-loop) to satisfy the power demand """
         tmatrix = ControlModule.generate_P(n_states,n_actions,probs)
-        allcmatrix = np.array([ControlModule.generate_R(n_states,n_actions,d) for d in demand])
         optimized_action = np.int32(-1)
         current_power = 0
         power_curve = []
@@ -80,7 +79,7 @@ class ControlModule:
             decrease = [max(0,current_power-2),max(0,current_power-1),current_power]
             maintain = [max(0,current_power-1),current_power,min(n_states-1,current_power+1)]
             increase = [current_power,min(n_states-1,current_power+1),min(n_states-1,current_power+2)]
-            cmatrix = allcmatrix[i]
+            cmatrix = ControlModule.generate_R(n_states,n_actions,demand[i])
             optimized_action = ControlModule.control_iteration(current_power,tmatrix,cmatrix,0.95)
             if optimized_action == 0:
                 current_power = np.random.choice(decrease,p=probs["decrease"])
