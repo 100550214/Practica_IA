@@ -80,7 +80,7 @@ class ControlModule:
             maintain = [max(0,current_power-1),current_power,min(n_states-1,current_power+1)]
             increase = [current_power,min(n_states-1,current_power+1),min(n_states-1,current_power+2)]
             cmatrix = ControlModule.generate_R(n_states,n_actions,demand[i])
-            optimized_action = ControlModule.control_iteration(current_power,tmatrix,cmatrix,0.95)
+            optimized_action = ControlModule.control_iteration(current_power,tmatrix,cmatrix,gamma)
             if optimized_action == 0:
                 current_power = np.random.choice(decrease,p=probs["decrease"])
             elif optimized_action == 1:
