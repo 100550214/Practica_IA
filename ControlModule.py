@@ -43,8 +43,8 @@ class ControlModule:
         j = np.arange(n_states)
         k = np.arange(n_states)
         I,J,K = np.meshgrid(i,j,k,indexing='ij')
-        current = J/100
-        next_ = K/100
+        current = J/n_states
+        next_ = K/n_states
         decrease = (I==0)
         maintain = (I==1)
         increase = (I==2)
