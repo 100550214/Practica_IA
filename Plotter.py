@@ -33,7 +33,7 @@ def plot_correlation(demand: np.ndarray, response: np.ndarray) -> None:
     # Compute the 2D Linear-Regression for the plot
     X       = np.ones(shape=(demand.shape[0], 2), dtype=np.float64)
     X[:, 1] = demand
-    thetas  = np.linalg.inv(X.T @ X) @ X.T @ response
+    thetas, *_ = np.linalg.lstsq(X, response, rcond=None)
     x_reg   = np.array([ np.min(a=demand), np.max(a=demand) ], dtype=np.float64)
     y_reg   = thetas[0] + thetas[1] * x_reg
 
@@ -93,7 +93,7 @@ def plot_control_bars_usage(reactor: Reactor, response: np.ndarray) -> None:
     plt.plot(range(response.shape[0]), response, label='Response', color='gray')
     plt.plot(range(control_bar_usage.shape[0]), control_bar_usage, label='Control bar insertion', color='black')
     plt.xlabel("Time")
-    plt.ylabel("Power (%) | Insertion (%)")
+    plt.ylabel("Normalized power | Insertion (%)")
     plt.legend()
     plt.grid(True)
     plt.show()

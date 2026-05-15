@@ -20,6 +20,11 @@ class Reactor:
         self.max_power         = self.compute_max_power()
         self.k                 = self.compute_k()
 
+    @staticmethod
+    def _clip_fraction(value: np.float64, eps: np.float64=1e-12) -> np.float64:
+        """ Keeps normalized power fractions away from invalid log/exponential edge cases. """
+        return np.float64(np.clip(value, eps, 1.0))
+
     def __str__(self) -> str:
         """ Overloading of the native __str__ function to print the class instances """
         _str  = f"Model: {self.model}\n"
@@ -40,8 +45,11 @@ class Reactor:
     
     def compute_power(self, control_bars_insertion: np.float64) -> np.float64:
         """ Computes the power delivered (%) by the reactor based on the % of control-bars inserted """
-        return self.compute_max_power()*(math.e**(-self.compute_k()*control_bars_insertion))
+        insertion = np.float64(np.clip(control_bars_insertion, 0.0, 1.0))
+        normalized_power = math.e ** (-self.k * insertion)
+        return np.float64(normalized_power)
     
     def compute_control_bars_insertion(self, power: np.float64) -> np.float64:
         """ Computes the % of controls-bars inserted based on the % of power delivered by the reactor """
-        return (np.log(power)-np.log(self.compute_max_power()))/-self.compute_k()
+        normalized_power = self._clip_fraction(power)
+        return np.float64(-np.log(normalized_power) / self.k)

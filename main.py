@@ -1,156 +1,24 @@
 # Import required dependencies
-import numpy as np
-import mdptoolbox
 import argparse
 import json
 from pathlib import Path
-from Reactor import Reactor
+
+import numpy as np
+
+from ControlModule import ControlModule
 from DemandGenerator import generate_demand
 from Metrics import *
 from Plotter import *
+from Reactor import Reactor
 
-
-class ControlModule:
-    def __init__(self):
-        """ Dummy constructor to use the Python Class as a namespace """
-        pass
-
-    @staticmethod
-    def generate_P(n_states: np.int32, n_actions: np.int32, n_probs: np.ndarray) -> np.ndarray:
-        """ Function that generates the probabilities transition matrix """
-
-        tmatrix = np.zeros((n_actions, n_states, n_states))
-
-        i = np.arange(n_states)
-
-        if "decrease" in n_probs:
-            p = n_probs["decrease"]
-            tmatrix[0, i, np.maximum(i - 2, 0)] += p[0]
-            tmatrix[0, i, np.maximum(i - 1, 0)] += p[1]
-            tmatrix[0, i, i] = p[2]
-
-        if "maintain" in n_probs:
-            p = n_probs["maintain"]
-            tmatrix[1, i, np.maximum(i - 1, 0)] += p[0]
-            tmatrix[1, i, i] = p[1]
-            tmatrix[1, i, np.minimum(i + 1, n_states - 1)] += p[2]
-
-        if "increase" in n_probs:
-            p = n_probs["increase"]
-            tmatrix[2, i, i] = p[0]
-            tmatrix[2, i, np.minimum(i + 1, n_states - 1)] += p[1]
-            tmatrix[2, i, np.minimum(i + 2, n_states - 1)] += p[2]
-
-        return tmatrix
-
-    @staticmethod
-    def generate_R(n_states: np.int32, n_actions: np.int32, demand: np.int64) -> np.ndarray:
-        """ Function that generates the rewards costs matrix """
-
-        cmatrix = np.zeros((n_actions, n_states, n_states))
-
-        i = np.arange(n_actions)
-        j = np.arange(n_states)
-        k = np.arange(n_states)
-
-        I, J, K = np.meshgrid(i, j, k, indexing="ij")
-
-        current = J / n_states
-        next_ = K / n_states
-
-        decrease = I == 0
-        maintain = I == 1
-        increase = I == 2
-
-        penalize = (
-            ((current < demand) & decrease & (current < next_))
-            | ((current > demand) & increase & (current > next_))
-            | ((current < demand) & maintain & (current == next_))
-            | ((current > demand) & maintain & (current == next_))
-            | ((current == demand) & decrease & (current < next_))
-            | ((current == demand) & increase & (current > next_))
-        )
-
-        cost = np.abs(demand - next_)
-        cmatrix[:] = np.where(penalize, cost * 2, cost)
-
-        return cmatrix
-
-    @staticmethod
-    def control_iteration(
-        current_power: np.int32,
-        tmatrix: np.ndarray,
-        cmatrix: np.ndarray,
-        discount: np.float64,
-    ) -> np.float64:
-        """ Function that computes one control iteration """
-
-        result = mdptoolbox.mdp.ValueIteration(tmatrix, cmatrix, discount)
-        result.run()
-
-        return result.policy[current_power]
-
-    @staticmethod
-    def control_loop(
-        demand: np.ndarray,
-        probs: np.ndarray,
-        n_states: np.int32,
-        n_actions: np.int32,
-        gamma: np.float64,
-    ) -> np.ndarray:
-        """ Function that computes all the required iterations control loop to satisfy the power demand """
-
-        tmatrix = ControlModule.generate_P(n_states, n_actions, probs)
-
-        current_power = np.int32(0)
-        power_curve = []
-
-        for i in range(len(demand)):
-            decrease = [
-                max(0, current_power - 2),
-                max(0, current_power - 1),
-                current_power,
-            ]
-
-            maintain = [
-                max(0, current_power - 1),
-                current_power,
-                min(n_states - 1, current_power + 1),
-            ]
-
-            increase = [
-                current_power,
-                min(n_states - 1, current_power + 1),
-                min(n_states - 1, current_power + 2),
-            ]
-
-            cmatrix = ControlModule.generate_R(n_states, n_actions, demand[i])
-            optimized_action = ControlModule.control_iteration(
-                current_power,
-                tmatrix,
-                cmatrix,
-                gamma,
-            )
-
-            if optimized_action == 0:
-                current_power = np.random.choice(decrease, p=probs["decrease"])
-            elif optimized_action == 1:
-                current_power = np.random.choice(maintain, p=probs["maintain"])
-            elif optimized_action == 2:
-                current_power = np.random.choice(increase, p=probs["increase"])
-
-            power_curve.append(current_power / 100)
-
-        return np.array(power_curve)
-
-def get_args() -> tuple[Reactor, np.float64]:
+def get_args() -> tuple[Reactor, float, int]:
     # Define the parser object
     parser = argparse.ArgumentParser()
 
     # Define the expected arguments to parse and their data types
-    parser.add_argument("--input-reactor", "-i", type=str, default="Reactors", help="Path of the reactor's JSON file")
-    parser.add_argument("--gamma", "-g", type=float, help="Discount factor used in the MDP")
-    parser.add_argument("--random-seed", "-r", type=int, help="Pseudo-random number generator seed")
+    parser.add_argument("--input-reactor", "-i", type=str, default="Reactors/R0.json", help="Path of the reactor's JSON file")
+    parser.add_argument("--gamma", "-g", type=float, default=0.9, help="Discount factor used in the MDP")
+    parser.add_argument("--random-seed", "-r", type=int, default=42, help="Pseudo-random number generator seed")
 
     # Parse the arguments
     args = parser.parse_args()
@@ -177,12 +45,27 @@ def get_args() -> tuple[Reactor, np.float64]:
     # Build the Reactor object by reading the reactor's JSON file
     with open(input_reactor_path, 'r', encoding='utf-8') as file:
         json_data = json.load(fp=file)
-        reactor   = Reactor(model=json_data['model'],
-                            effective_section=float(json_data['effective_section']),
-                            neutron_flux=float(json_data['neutron_flux']),
-                            core_volume=float(json_data['core_volume']),
-                            fision_energy=float(json_data['fision_energy']),
-                            probabilities=dict(json_data['probabilities']))
+
+        required_fields = (
+            "model",
+            "effective_section",
+            "neutron_flux",
+            "core_volume",
+            "fision_energy",
+            "probabilities",
+        )
+        missing_fields = [field for field in required_fields if field not in json_data]
+        if missing_fields:
+            raise ValueError(
+                f"Error: reactor file '{input_reactor_path}' is missing required fields: {', '.join(missing_fields)}"
+            )
+
+        reactor = Reactor(model=json_data['model'],
+                          effective_section=float(json_data['effective_section']),
+                          neutron_flux=float(json_data['neutron_flux']),
+                          core_volume=float(json_data['core_volume']),
+                          fision_energy=float(json_data['fision_energy']),
+                          probabilities=dict(json_data['probabilities']))
 
     # Some verbose of the reactor loaded
     print(reactor)  # Overloaded in the __str__ method of Reactor's class
@@ -194,16 +77,20 @@ def main() -> None:
     # Parse the main arguments
     reactor, gamma, random_seed = get_args()
 
+    if not 0.0 < gamma < 1.0:
+        raise ValueError("Error: gamma must be strictly between 0 and 1.")
+
     # Set the random seed
     np.random.seed(random_seed)
 
     # Get the probabilities from the reactor's dynamics
-    probs = np.array([reactor.probabilities['decrease'], 
-                      reactor.probabilities['maintain'], 
-                      reactor.probabilities['increase']], dtype=np.float64)
+    probs = reactor.probabilities
+    probs_array = np.array([probs['decrease'],
+                            probs['maintain'],
+                            probs['increase']], dtype=np.float64)
     
     # Make a radar-plot with the reactor probabilities
-    plot_reactor_as_radar(probs=probs)
+    plot_reactor_as_radar(probs=probs_array)
     
     # Generate a random power demand
     demand = generate_demand(n_samples=512)

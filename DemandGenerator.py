@@ -28,11 +28,15 @@ def scale_signal(signal: np.ndarray, method: str='MinMax') -> np.ndarray:
         # Apply the MinMax normalization
         case 'minmax':
             _min, _max = np.min(a=signal), np.max(a=signal)
+            if np.isclose(_max, _min):
+                return np.zeros_like(signal, dtype=np.float64)
             return (signal - _min) / (_max - _min)
 
         # Apply the STD normal distribution standarization
         case 'std':
             mu, sigma = np.mean(a=signal), np.std(a=signal)
+            if np.isclose(sigma, 0.0):
+                return np.zeros_like(signal, dtype=np.float64)
             return (signal - mu) / sigma
 
         # Default case for error management
@@ -44,6 +48,8 @@ def moving_average_filter(signal: np.ndarray, window_size: np.int32=7) -> np.nda
     # Manage exceptions when the window-size is inconsistent
     if window_size <= 0:
         raise ValueError("Error: window size must be greater than zero!")
+    if window_size > signal.shape[0]:
+        raise ValueError("Error: window size must not exceed signal length!")
     
     # Compute the required amount of padding to keep the signal size after the convolutions
     p_size         = window_size - 1
@@ -56,7 +62,7 @@ def moving_average_filter(signal: np.ndarray, window_size: np.int32=7) -> np.nda
     # Initialize the output signal array and fill it with the corresponding convolutions (of the MA-filter)
     output_signal = np.zeros(shape=signal.shape[0], dtype=np.float64)
     for i in range(signal.shape[0]):
-        output_signal[i] = np.mean(a=signal[ i : i + window_size ])
+        output_signal[i] = np.mean(a=signal_padding[i : i + window_size])
 
     # Return the filtered signal
     return output_signal
