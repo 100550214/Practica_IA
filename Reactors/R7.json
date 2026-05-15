@@ -1,0 +1,12 @@
+{
+    "model": "AGGRESSIVE-OVERSHOOT",
+    "effective_section": 17.9,
+    "neutron_flux": 5.0e13,
+    "core_volume": 9.70e6,
+    "fision_energy": 3.3e-11,
+    "probabilities": {
+        "decrease": [0.80, 0.15, 0.05],
+        "maintain": [0.40, 0.20, 0.40],
+        "increase": [0.05, 0.15, 0.80]
+    }
+}

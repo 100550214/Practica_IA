@@ -1,0 +1,12 @@
+{
+    "model": "IDEAL-DETERMINISTIC",
+    "effective_section": 17.8,
+    "neutron_flux": 5.1e13,
+    "core_volume": 9.50e6,
+    "fision_energy": 3.2e-11,
+    "probabilities": {
+        "decrease": [1.0, 0.0, 0.0],
+        "maintain": [0.0, 1.0, 0.0],
+        "increase": [0.0, 0.0, 1.0]
+    }
+}

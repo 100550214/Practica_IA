@@ -1,0 +1,12 @@
+{
+    "model": "INERT-SLOW",
+    "effective_section": 18.4,
+    "neutron_flux": 5.3e13,
+    "core_volume": 1.02e7,
+    "fision_energy": 3.2e-11,
+    "probabilities": {
+        "decrease": [0.05, 0.10, 0.85],
+        "maintain": [0.05, 0.90, 0.05],
+        "increase": [0.85, 0.10, 0.05]
+    }
+}

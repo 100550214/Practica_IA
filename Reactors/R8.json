@@ -1,0 +1,12 @@
+{
+    "model": "RUNAWAY-UPWARD-BIAS",
+    "effective_section": 19.1,
+    "neutron_flux": 5.6e13,
+    "core_volume": 1.08e7,
+    "fision_energy": 3.3e-11,
+    "probabilities": {
+        "decrease": [0.05, 0.10, 0.85],
+        "maintain": [0.00, 0.25, 0.75],
+        "increase": [0.00, 0.05, 0.95]
+    }
+}
