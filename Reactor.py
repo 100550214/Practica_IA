@@ -1,5 +1,6 @@
 # Import required dependencies
 import numpy as np
+import math
 
 class Reactor:
     def __init__(self,
@@ -31,20 +32,16 @@ class Reactor:
 
     def compute_max_power(self) -> np.float64:
         """ Computes the maximum power of a reactor based on its physical features """
-        ### TO BE COMPLETED BY THE STUDENTS ###
-        ...
+        return self.effective_section*self.neutron_flux*self.core_volume*self.fision_energy
     
     def compute_k(self) -> np.float64:
         """ Computes the value of the k-constant """
-        ### TO BE COMPLETED BY THE STUDENTS ###
-        ...
+        return -np.log(10**-6/self.compute_max_power())
     
     def compute_power(self, control_bars_insertion: np.float64) -> np.float64:
         """ Computes the power delivered (%) by the reactor based on the % of control-bars inserted """
-        ### TO BE COMPLETED BY THE STUDENTS ###
-        ...
+        return self.compute_max_power()*(math.e**(-self.compute_k()*control_bars_insertion))
     
     def compute_control_bars_insertion(self, power: np.float64) -> np.float64:
         """ Computes the % of controls-bars inserted based on the % of power delivered by the reactor """
-        ### TO BE COMPLETED BY THE STUDENTS ###
-        ...
+        return (np.log(power)-np.log(self.compute_max_power()))/-self.compute_k()
