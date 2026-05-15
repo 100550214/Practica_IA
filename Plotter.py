@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from Reactor import Reactor
 
 def plot_demand(demand: np.ndarray) -> None:
-    """ Plots the demand as a time-series (signal) """
+    """Plot the demand as a normalized time-series signal."""
     plt.figure(figsize=(8, 8))
     plt.title("Evolution in the power demand")
     plt.plot(range(demand.shape[0]), demand, label='Demand')
@@ -16,7 +16,7 @@ def plot_demand(demand: np.ndarray) -> None:
     return
 
 def plot_demand_response(demand: np.ndarray, response: np.ndarray) -> None:
-    """ Plots the demand-response as two different time-series """
+    """Plot demand and reactor response on the same time axis."""
     plt.figure(figsize=(8, 8))
     plt.title("Power demand vs. Power response")
     plt.plot(range(demand.shape[0]), demand, label='Demand')
@@ -29,15 +29,14 @@ def plot_demand_response(demand: np.ndarray, response: np.ndarray) -> None:
     return
 
 def plot_correlation(demand: np.ndarray, response: np.ndarray) -> None:
-    """ Plots the demand-response correlation (scatter-plot) """
-    # Compute the 2D Linear-Regression for the plot
+    """Plot the demand-response correlation with a fitted regression line."""
+    # Fit response = theta0 + theta1 * demand for the visual trend line.
     X       = np.ones(shape=(demand.shape[0], 2), dtype=np.float64)
     X[:, 1] = demand
     thetas, *_ = np.linalg.lstsq(X, response, rcond=None)
     x_reg   = np.array([ np.min(a=demand), np.max(a=demand) ], dtype=np.float64)
     y_reg   = thetas[0] + thetas[1] * x_reg
 
-    # Perform the scatter-plot with the linear regression
     plt.figure(figsize=(8, 8))
     plt.title("Demand - Response correlation")
     plt.scatter(demand, response, label='Data', edgecolor='white', zorder=2)
@@ -50,14 +49,15 @@ def plot_correlation(demand: np.ndarray, response: np.ndarray) -> None:
     return
 
 def plot_reactor_as_radar(probs: np.ndarray) -> None:
-    """ Plots the probabilities of the reactor in a radar-plot style """
+    """Plot the reactor's action reliability as a radar chart."""
     # Action labels (D: Decrease, M: Maintain, I: Increase)
     labels = ['D', 'M', 'I']
 
     # Compute the angles
     angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
 
-    # Get the values from the Numpy Array (now a Python list)
+    # Use the middle probability of each action, which represents the intended
+    # outcome for decrease, maintain, and increase.
     values = probs[:, 1].tolist()
 
     # Compute the ideal values for the perfect reactor (deterministic)
@@ -84,7 +84,9 @@ def plot_reactor_as_radar(probs: np.ndarray) -> None:
     return
 
 def plot_control_bars_usage(reactor: Reactor, response: np.ndarray) -> None:
-    """ Plots the reactor's response and the corresponding control bar insertion (usage) """
+    """Plot reactor response and equivalent control-bar insertion."""
+    # Translate normalized response power into the required insertion value for
+    # each time sample.
     control_bar_usage = np.zeros_like(a=response, dtype=np.float64)
     for i in range(response.shape[0]):
         control_bar_usage[i] = reactor.compute_control_bars_insertion(power=response[i])
@@ -100,6 +102,7 @@ def plot_control_bars_usage(reactor: Reactor, response: np.ndarray) -> None:
     return
 
 def plot_mae_and_mse(MAE: np.float64, MSE: np.float64) -> None:
+    """Plot the error metrics that should be minimized."""
     categories = ['MAE', 'MSE']
     values     = [MAE, MSE]
     plt.bar(categories, values, color=[ 'blue', 'orange' ], edgecolor='black', zorder=2)
@@ -110,6 +113,7 @@ def plot_mae_and_mse(MAE: np.float64, MSE: np.float64) -> None:
     plt.show()
 
 def plot_r2_and_pearson(R2: np.float64, Pearson: np.float64) -> None:
+    """Plot the quality metrics that should be maximized."""
     categories = ['R2', 'Pearson']
     values     = [R2, Pearson]
     plt.bar(categories, values, color=[ 'blue', 'orange' ], edgecolor='black', zorder=2)

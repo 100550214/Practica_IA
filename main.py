@@ -12,37 +12,34 @@ from Plotter import *
 from Reactor import Reactor
 
 def get_args() -> tuple[Reactor, float, int]:
-    # Define the parser object
+    # Collect the reactor configuration and controller parameters from the CLI.
     parser = argparse.ArgumentParser()
 
-    # Define the expected arguments to parse and their data types
     parser.add_argument("--input-reactor", "-i", type=str, default="Reactors/R0.json", help="Path of the reactor's JSON file")
     parser.add_argument("--gamma", "-g", type=float, default=0.9, help="Discount factor used in the MDP")
     parser.add_argument("--random-seed", "-r", type=int, default=42, help="Pseudo-random number generator seed")
 
-    # Parse the arguments
     args = parser.parse_args()
 
-    # Convert the reactor path to a Path object
+    # Resolve relative reactor paths from this script's directory so the program
+    # can be launched from any working directory.
     input_reactor_path = Path(args.input_reactor)
 
-    # If the path is relative, resolve it from the folder where main.py is located
     if not input_reactor_path.is_absolute():
         input_reactor_path = Path(__file__).resolve().parent / input_reactor_path
 
-    # Check that the file exists before trying to open it
     if not input_reactor_path.is_file():
         raise FileNotFoundError(
             f"No se encontró el archivo del reactor: {input_reactor_path}\n"
             f"Verifica que exista el archivo o pasa una ruta válida con --input-reactor."
         )
 
-    # Some verbose to check the correct parsing of the input arguments
+    # Echo the selected setup before the simulation starts.
     print(f"Loading reactor from file: {input_reactor_path}")
     print(f"Using gamma (discount factor): {args.gamma}")
     print(f"Using {args.random_seed} as random seed")
 
-    # Build the Reactor object by reading the reactor's JSON file
+    # Load and validate the JSON fields needed to build a Reactor object.
     with open(input_reactor_path, 'r', encoding='utf-8') as file:
         json_data = json.load(fp=file)
 
@@ -67,23 +64,22 @@ def get_args() -> tuple[Reactor, float, int]:
                           fision_energy=float(json_data['fision_energy']),
                           probabilities=dict(json_data['probabilities']))
 
-    # Some verbose of the reactor loaded
+    # Show the loaded reactor parameters using Reactor.__str__.
     print(reactor)  # Overloaded in the __str__ method of Reactor's class
 
-    # Return the Reactor object, gamma and the random seed
     return reactor, args.gamma, args.random_seed
 
 def main() -> None:
-    # Parse the main arguments
+    # Parse the simulation setup.
     reactor, gamma, random_seed = get_args()
 
     if not 0.0 < gamma < 1.0:
         raise ValueError("Error: gamma must be strictly between 0 and 1.")
 
-    # Set the random seed
+    # Make the stochastic demand and reactor transitions reproducible.
     np.random.seed(random_seed)
 
-    # Get the probabilities from the reactor's dynamics
+    # Extract action probabilities in the order expected by the radar plot.
     probs = reactor.probabilities
     probs_array = np.array([probs['decrease'],
                             probs['maintain'],
@@ -92,14 +88,15 @@ def main() -> None:
     # Make a radar-plot with the reactor probabilities
     plot_reactor_as_radar(probs=probs_array)
     
-    # Generate a random power demand
+    # Generate the normalized target power signal that the controller tracks.
     demand = generate_demand(n_samples=512)
 
-    # Define the number of MDP's states, actions and the discount factor (gamma)
+    # The MDP discretizes normalized power into 100 states and uses three
+    # possible actions: decrease, maintain, and increase.
     n_states  = 100
     n_actions = 3
 
-    # Get the response time-series (answer to the demand time-series)
+    # Run the controller to produce the reactor response for the demand signal.
     response  = ControlModule.control_loop(demand=demand, 
                                            probs=probs,
                                            n_states=n_states,
